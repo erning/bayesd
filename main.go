@@ -73,15 +73,24 @@ func main() {
 
 	args := flag.Args()
 	if newClassifier {
+		if len(args) < 2 {
+			fmt.Println("Error: provide at least two classes")
+			return
+		}
 		classes := make([]bayesian.Class, len(args), len(args))
 		for i, v := range args {
 			classes[i] = bayesian.Class(v)
 		}
 		classifier = bayesian.NewClassifier(classes...)
+		classifier.WriteToFile(dataFile)
 		fmt.Printf("New classifier %s\n", dataFile)
 		fmt.Printf("Classes: %v\n", classes)
 	} else {
-		classifier, _ = bayesian.NewClassifierFromFile(dataFile)
+		classifier, err := bayesian.NewClassifierFromFile(dataFile)
+		if err != nil {
+			fmt.Println("Error: ", err)
+			return
+		}
 		fmt.Printf("Load classifier from %s\n", dataFile)
 		fmt.Printf("Classes: %v\n", classifier.Classes)
 	}
