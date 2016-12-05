@@ -1,6 +1,9 @@
-Install
+Build
 ```
-$ ge go install https://github.com/erning/bayesd
+$ ge go get https://github.com/erning/bayesd
+$ cd bayesd
+$ ge go build
+$ # GOOS=linux GOARCH=amd64 ge go build
 ```
 
 New
