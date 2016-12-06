@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/iris-contrib/middleware/logger"
 	"github.com/jbrukh/bayesian"
 	"github.com/kataras/iris"
 )
@@ -26,12 +27,15 @@ func handleLearn(c *iris.Context) {
 	class := bayesian.Class(c.Param("class"))
 	if !containsClass(class) {
 		c.Text(iris.StatusForbidden, "not such class")
+		c.JSON(400, map[string]string{"status": "error"})
+		return
 	}
 
 	tokens := []string{}
 	c.ReadJSON(&tokens)
 	classifier.Learn(tokens, class)
 	classifier.WriteToFile(dataFile)
+	c.JSON(iris.StatusOK, map[string]string{"status": "ok"})
 }
 
 func handleGuess(c *iris.Context) {
@@ -62,13 +66,20 @@ func handleGuess(c *iris.Context) {
 	}
 	result["scores"] = scoreMap
 
-	c.JSON(iris.StatusOK, result)
+	err := c.JSON(iris.StatusOK, result)
+	if err != nil {
+		c.JSON(iris.StatusInternalServerError, map[string]string{
+			"error": err.Error(),
+		})
+	}
 }
 
 func main() {
+	var verbose bool
 	flag.StringVar(&listenOn, "listen", ":8080", "HTTPd listen on")
 	flag.StringVar(&dataFile, "data", "bayesd.data", "Data file name")
 	flag.BoolVar(&newClassifier, "new", false, "Create new classifier")
+	flag.BoolVar(&verbose, "verbose", true, "Enable logger or not")
 	flag.Parse()
 
 	args := flag.Args()
@@ -86,13 +97,19 @@ func main() {
 		fmt.Printf("New classifier %s\n", dataFile)
 		fmt.Printf("Classes: %v\n", classes)
 	} else {
-		classifier, err := bayesian.NewClassifierFromFile(dataFile)
+		var err error
+		classifier, err = bayesian.NewClassifierFromFile(dataFile)
 		if err != nil {
 			fmt.Println("Error: ", err)
 			return
 		}
 		fmt.Printf("Load classifier from %s\n", dataFile)
 		fmt.Printf("Classes: %v\n", classifier.Classes)
+	}
+
+	if verbose {
+		fmt.Println("Verbose: YES")
+		iris.Use(logger.New())
 	}
 
 	iris.Post("/learn/:class", handleLearn)
